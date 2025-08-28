@@ -1,0 +1,7 @@
+method,Avg Time(s),Validity,Sparsity,Proximity_con,Proximity_cat,Manifold,Avg CF count
+kdtree,7.24,1.0,0.66,0.98,0.4,0.0,4.0
+random,0.56,1.0,0.33,4.33,0.07,618.96,4.0
+genetic,4.26,1.0,0.58,1.39,0.3,144.16,3.99
+gradient,20.5,1.0,0.38,1.08,0.17,100.57,4.0
+Alibi_CFRL,0.19,1.0,0.39,0.81,0.19,21.75,4.0
+Alibi_Proto,10.55,0.97,0.08,1.21,0.03,101.33,1.0

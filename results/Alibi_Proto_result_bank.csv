@@ -1,0 +1,2 @@
+method,Avg Time(s),Validity,Sparsity,Proximity_con,Proximity_cat,Manifold,Avg CF count
+Alibi_Proto,10.55,0.97,0.08,1.21,0.03,101.33,1.0

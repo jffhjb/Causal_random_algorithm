@@ -1,0 +1,1 @@
+{"_timestamp":1.7559971101772037e+09,"critic_loss":0.04132895544171333,"actor_loss":-0.9885079860687256,"sparsity_num_loss":0.2352876514196396,"_runtime":71.9897898,"consistency_loss":0.10160287469625473,"reward":0.96,"_step":19,"_wandb":{"runtime":198},"sparsity_cat_loss":0.3800000548362732}

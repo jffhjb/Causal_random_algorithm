@@ -1,0 +1,2 @@
+method,Avg Time(s),Validity,Sparsity,Proximity_con,Proximity_cat,Manifold,Avg CF count
+Alibi_CFRL,0.2,1.0,0.57,0.36,0.36,9.75,4.0

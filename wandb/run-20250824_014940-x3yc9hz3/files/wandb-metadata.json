@@ -1,0 +1,38 @@
+{
+  "os": "Windows-10-10.0.26100-SP0",
+  "python": "CPython 3.9.21",
+  "startedAt": "2025-08-24T00:49:40.060113Z",
+  "program": "e:\\Graduation_Project\\CFs_Project\\alibi_CRF_bank.ipynb",
+  "codePath": "alibi_CRF_bank.ipynb",
+  "email": "a1227872681@126.com",
+  "root": "e:\\Graduation_Project\\CFs_Project",
+  "host": "Smartbrain",
+  "executable": "d:\\ANACONDA\\envs\\dice_XAI\\python.exe",
+  "codePathLocal": "alibi_CRF_bank.ipynb",
+  "cpu_count": 24,
+  "cpu_count_logical": 32,
+  "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "214799740928",
+      "used": "14274953216"
+    }
+  },
+  "memory": {
+    "total": "34070192128"
+  },
+  "cpu": {
+    "count": 24,
+    "countLogical": 32
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "memoryTotal": "8585740288",
+      "cudaCores": 3072,
+      "architecture": "Ada"
+    }
+  ],
+  "cudaVersion": "12.8"
+}
