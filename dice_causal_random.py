@@ -28,7 +28,7 @@ class CausalRandom(ExplainerBase):
         self.model.load_model()  # loading pickled trained model if applicable
         self.model.transformer.feed_data_params(data_interface)
         self.model.transformer.initialize_transform_func()
-        self.gcm_model = gcm_model  # 🟢 添加这一行
+        self.gcm_model = gcm_model  # 🟢 Add this line
 
         self.precisions = self.data_interface.get_decimal_precisions(output_type="dict")
         if self.data_interface.outcome_name in self.precisions:
@@ -64,7 +64,7 @@ class CausalRandom(ExplainerBase):
 
         :returns: A CounterfactualExamples object that contains the dataframe of generated counterfactuals as an attribute.
         """
-        # 设置要改变的特征
+        # Set features to vary
         self.features_to_vary = self.setup(features_to_vary, permitted_range, query_instance, feature_weights=None)
 
         if features_to_vary == "all":
@@ -104,36 +104,36 @@ class CausalRandom(ExplainerBase):
         # get random samples for each feature independently
         start_time = timeit.default_timer()
         
-        # 计算基于5分位数到95分位数的特征范围
+        # Calculate feature ranges based on 5th to 95th percentiles
         safe_feature_range = {}
         for feature in self.data_interface.feature_names:
             if feature in self.data_interface.continuous_feature_names:
-                # 对于连续特征，使用5分位数到95分位数
+                # For continuous features, use 5th to 95th percentiles
                 series = self.data_interface.data_df[feature]
                 try:
                     low_q = float(np.nanpercentile(series.values, 5))
                     high_q = float(np.nanpercentile(series.values, 95))
                     if not np.isfinite(low_q) or not np.isfinite(high_q) or low_q >= high_q:
-                        # 如果分位数计算失败，回退到原始范围
+                        # If percentile calculation fails, fall back to original range
                         low_q = float(np.nanmin(series.values))
                         high_q = float(np.nanmax(series.values))
                 except Exception:
-                    # 异常情况下回退到原始范围
+                    # In case of exception, fall back to original range
                     low_q = float(np.nanmin(series.values))
                     high_q = float(np.nanmax(series.values))
                 safe_feature_range[feature] = [low_q, high_q]
             else:
-                # 对于类别特征，使用原始范围
+                # For categorical features, use original range
                 safe_feature_range[feature] = list(self.feature_range[feature])
         
-        # 生成随机样本
+        # Generate random samples
         random_instances = self.get_samples(
             self.fixed_features_values,
             safe_feature_range, sampling_random_seed=random_seed, sampling_size=sample_size)
         # Generate copies of the query instance that will be changed one feature
         # at a time to encourage sparsity.
         cfs_df = None
-        # 复制query_instance作为反事实模板
+        # Copy query_instance as counterfactual template
         candidate_cfs = pd.DataFrame(
             np.repeat(query_instance.values, sample_size, axis=0), columns=query_instance.columns)
         for col in candidate_cfs.columns:
@@ -145,15 +145,15 @@ class CausalRandom(ExplainerBase):
         # Loop to change one feature at a time, then two features, and so on.
         for num_features_to_vary in range(1, len(self.features_to_vary)+1):
 
-            # 随机选择一个特征
+            # Randomly select one feature
             selected_features = np.random.choice(self.features_to_vary, (sample_size, 1), replace=True)
 
-            # 将随机样本替换到反事实模板中
+            # Replace random samples into counterfactual template
             for k in range(sample_size):
                 
                 feature = selected_features[k][0] 
 
-                # 插入到 gcm.counterfactual_samples 调用中
+                # Insert into gcm.counterfactual_samples call
                 candidate_cfs.loc[candidate_cfs.index[k], :] = gcm.counterfactual_samples(
                     self.gcm_model,
                     {feature: lambda x: random_instances.at[k, feature]},
@@ -164,7 +164,7 @@ class CausalRandom(ExplainerBase):
 
 
 
-                # 修正 candidate_cfs 中的某些变量超出范围的情况
+                # Fix cases where some variables in candidate_cfs exceed the range
             for feature in self.data_interface.categorical_feature_names:
                 min_val = self.data_interface.data_df[feature].cat.codes.min()
                 max_val = self.data_interface.data_df[feature].cat.codes.max()
@@ -174,13 +174,13 @@ class CausalRandom(ExplainerBase):
 
             
 
-            # 预测反事实样本
+            # Predict counterfactual samples
             scores = self.predict_fn(candidate_cfs)
-            # 判断反事实样本是否有效
+            # Determine if counterfactual samples are valid
             validity = self.decide_cf_validity(scores)
 
             
-            # 如果反事实样本有效，则添加到反事实样本中
+            # If counterfactual samples are valid, add them to counterfactual samples
             if sum(validity) > 0:
                 rows_to_add = candidate_cfs[validity == 1]
                 if cfs_df is None:
@@ -279,7 +279,7 @@ class CausalRandom(ExplainerBase):
             model_type=self.model.model_type
         )
 
-        # ✅ 动态挂载 intervention_history 到 CounterfactualExamples 对象上
+        # ✅ Dynamically attach intervention_history to CounterfactualExamples object
         cf_result.intervention_log = intervention_log
 
         return cf_result
@@ -294,21 +294,21 @@ class CausalRandom(ExplainerBase):
             random.seed(sampling_random_seed)
 
         samples = []
-        # 遍历所有特征
+        # Iterate through all features
         for feature in self.data_interface.feature_names:
             if feature in fixed_features_values:
-                # 如果特征在固定特征值中，则使用固定特征值
+                # If feature is in fixed feature values, use fixed feature value
                 sample = [fixed_features_values[feature]]*sampling_size
-            # 如果特征是连续特征，则生成连续样本
+            # If feature is continuous, generate continuous samples
             elif feature in self.data_interface.continuous_feature_names:
-                # 获取特征范围
+                # Get feature range
                 low = feature_range[feature][0]
                 high = feature_range[feature][1]
                 sample = self.get_continuous_samples(
                     low, high, precisions[feature], size=sampling_size,
                     seed=sampling_random_seed)
             else:
-                # 如果特征是类别特征，则生成类别样本
+                # If feature is categorical, generate categorical samples
                 if sampling_random_seed is not None:
                     random.seed(sampling_random_seed)
                 sample = random.choices(feature_range[feature], k=sampling_size)
@@ -322,12 +322,12 @@ class CausalRandom(ExplainerBase):
         if seed is not None:
             np.random.seed(seed)
 
-        # 如果精度为0，则生成整数样本
+        # If precision is 0, generate integer samples
         if precision == 0:
             result = np.random.randint(low, high+1, size).tolist()
             result = [float(r) for r in result]
         else:
-            # 如果精度不为0，则生成浮点数样本
+            # If precision is not 0, generate float samples
             result = np.random.uniform(low, high+(10**-precision), size)
             result = [round(r, precision) for r in result]
         return result

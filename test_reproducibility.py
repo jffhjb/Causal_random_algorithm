@@ -1,5 +1,5 @@
 """
-测试脚本：验证因果反事实生成的可重现性
+Test script: Verify the reproducibility of causal counterfactual generation
 """
 import os
 import random
@@ -13,7 +13,7 @@ from dowhy import gcm
 from dowhy.gcm.auto import AssignmentQuality
 import dice_ml
 
-# 设置全局随机种子
+# Set global random seed
 SEED = 42
 os.environ["PYTHONHASHSEED"] = str(SEED)
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
@@ -29,7 +29,7 @@ def set_seed(s: int = SEED):
 
 set_seed(SEED)
 
-# 导入修改后的CausalRandom
+# Import modified CausalRandom
 import dice_causal_random
 from dice_causal_random import CausalRandom
 
@@ -41,20 +41,20 @@ def make_random_dag_for_7(seed=42, p_x=0.35, p_to_y=0.5, min_parents_y=2):
     dag = nx.DiGraph()
     dag.add_nodes_from(Xs + [Y])
 
-    # X 内部随机连边（只允许从索引小的指向大的）
+    # Random edges within X (only allow edges from smaller to larger indices)
     for i in range(len(Xs)):
         for j in range(i + 1, len(Xs)):
             if rng.random() < p_x:
                 dag.add_edge(Xs[i], Xs[j])
 
-    # Xi -> Y 的随机边
+    # Random edges from Xi to Y
     parents_y = []
     for xi in Xs:
         if rng.random() < p_to_y:
             dag.add_edge(xi, Y)
             parents_y.append(xi)
 
-    # 若父节点太少，强制补足
+    # If too few parent nodes, force additional ones
     if len(parents_y) < min_parents_y:
         need = min_parents_y - len(parents_y)
         candidates = [x for x in Xs if x not in parents_y]
@@ -62,7 +62,7 @@ def make_random_dag_for_7(seed=42, p_x=0.35, p_to_y=0.5, min_parents_y=2):
         for xi in forced:
             dag.add_edge(xi, Y)
 
-    # 确保是 DAG，且 Y 是汇点（没有子节点）
+    # Ensure it's a DAG and Y is a sink (no child nodes)
     assert nx.is_directed_acyclic_graph(dag)
     assert list(dag.successors(Y)) == []
 
@@ -73,7 +73,7 @@ def simulate_sem(dag, n=1000, seed=42, nonlinear=False, noise_scale=1.0, binary_
     order = list(nx.topological_sort(dag))
     data = pd.DataFrame(index=range(n), columns=order, dtype=float)
 
-    # 随机权重和偏置
+    # Random weights and biases
     W, bias = {}, {}
     for u, v in dag.edges():
         W[(u, v)] = round(rng.uniform(-2.0, 2.0) * 0.8, 2)
@@ -82,7 +82,7 @@ def simulate_sem(dag, n=1000, seed=42, nonlinear=False, noise_scale=1.0, binary_
 
     for v in order:
         parents = list(dag.predecessors(v))
-        if not parents:  # root：标准正态
+        if not parents:  # root: standard normal
             data[v] = np.round(rng.normal(0, 1, size=n), 2)
         else:
             lin = bias[v]
@@ -90,7 +90,7 @@ def simulate_sem(dag, n=1000, seed=42, nonlinear=False, noise_scale=1.0, binary_
                 lin += W[(p, v)] * data[p].values
 
             if v == "Y" and binary_Y:
-                # logistic 分类
+                # logistic classification
                 logits = lin + rng.normal(0, noise_scale, size=n)
                 probs = 1 / (1 + np.exp(-logits))
                 data[v] = (probs > 0.5).astype(int)
@@ -120,13 +120,13 @@ def build_simple_dnn():
     return model
 
 def test_reproducibility():
-    """测试可重现性"""
-    print("开始测试可重现性...")
+    """Test reproducibility"""
+    print("Starting reproducibility test...")
     
-    # 生成数据集
+    # Generate dataset
     dag, df = make_7vars_dataset(n=500, seed=2025, nonlinear=True, binary_Y=True)
     
-    # 准备数据
+    # Prepare data
     target = df['Y']
     df_X = df.drop(columns=['Y'])
     dag.remove_node("Y")
@@ -137,12 +137,12 @@ def test_reproducibility():
     X_train_df = train_dataset.drop('Y', axis=1)
     X_test_df = test_dataset.drop('Y', axis=1)
     
-    # 训练模型
+    # Train model
     set_seed(1)
     model = build_simple_dnn()
     model.fit(X_train_df.values, to_categorical(y_train), epochs=10, batch_size=8, verbose=0)
     
-    # 准备DiCE接口
+    # Prepare DiCE interface
     d = dice_ml.Data(
         dataframe=train_dataset,
         continuous_features=[c for c in train_dataset.columns if c != 'Y'],
@@ -150,49 +150,49 @@ def test_reproducibility():
     )
     m = dice_ml.Model(model=model, backend="TF2")
     
-    # 设置GCM模型
+    # Set up GCM model
     np.random.seed(42)
     random.seed(42)
     scm = gcm.InvertibleStructuralCausalModel(dag)
     summary = gcm.auto.assign_causal_mechanisms(scm, df, quality=AssignmentQuality.GOOD)
     gcm.fit(scm, df)
     
-    # 创建CausalRandom实例
+    # Create CausalRandom instance
     exp = CausalRandom(d, m, scm, random_seed=42)
     
-    # 生成反事实
+    # Generate counterfactuals
     e1 = exp.generate_counterfactuals(
-        X_test_df[:5],  # 只测试5个样本以加快速度
+        X_test_df[:5],  # Only test 5 samples to speed up
         total_CFs=2,
         sample_size=100,
         random_seed=42
     )
     
-    # 提取结果
+    # Extract results
     all_cfs = pd.concat([cf.final_cfs_df for cf in e1.cf_examples_list], ignore_index=True)
     
-    # 计算summary_causal
+    # Calculate summary_causal
     summary_evaluation = gcm.evaluate_causal_model(scm, all_cfs, compare_mechanism_baselines=True)
     
     return summary_evaluation
 
 if __name__ == "__main__":
-    # 运行两次测试
-    print("第一次运行...")
+    # Run test twice
+    print("First run...")
     result1 = test_reproducibility()
     
-    print("\n第二次运行...")
+    print("\nSecond run...")
     result2 = test_reproducibility()
     
-    # 比较结果
-    print("\n=== 可重现性测试结果 ===")
-    print(f"两次运行结果是否相同: {result1 == result2}")
+    # Compare results
+    print("\n=== Reproducibility Test Results ===")
+    print(f"Are the results from two runs identical: {result1 == result2}")
     
     if result1 == result2:
-        print("✅ 测试通过！结果完全可重现。")
+        print("✅ Test passed! Results are completely reproducible.")
     else:
-        print("❌ 测试失败！结果不可重现。")
-        print("\n第一次运行结果:")
+        print("❌ Test failed! Results are not reproducible.")
+        print("\nFirst run results:")
         print(result1)
-        print("\n第二次运行结果:")
+        print("\nSecond run results:")
         print(result2) 
